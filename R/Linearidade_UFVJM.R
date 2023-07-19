@@ -11,180 +11,446 @@
 #Lin_UFVJM(x,y)
 
 #Análise de premissas e linearidade
-Lin_UFVJM<-function(x,y){
+
+lmQuim<-function (trat, resp, ylab = "Response", xlab = "Independent",
+                  yname.poly = "y", xname.poly = "x", grau = NA, theme = theme_classic(),
+                  point = "mean_sd", color = "gray80", posi = "top", textsize = 12,
+                  se = FALSE, ylim = NA, family = "sans", pointsize = 4.5,
+                  linesize = 0.8, width.bar = NA, n = NA, SSq = NA, DFres = NA)
+{
+  library(ggplot2)
+  library(gridExtra)
   library(car)
-  #modelo de regressao
-  md=lm(y~x)
-
-  ANA<-summary(aov(y~factor(x)))
-  # Montando a anova
-  n<-length(y)
-  nt<-length(levels(factor(x)))
-  r<-n/nt
-  trat<-factor(x)
-  SQTotal<-sum(y^2) -(sum(y)^2)/n
-  SQTotal
-  b0<-coefficients(md)[1];b1<-coefficients(md)[2]
-  SQReg<-b0*sum(y)+b1*sum(x*y) -(sum(y)^2)/n
-  SQReg
-  SQTrat<-sum(tapply(y,x, sum)^2)/r-(sum(y)^2)/n
-  SQTrat
-  SQRes<-SQTotal-SQTrat
-  SQRes
-  SQFa<-SQTrat-SQReg
-  SQFa
-
-  ####graus de liberdade
-  glreg<-1
-  gltotal<-n-1
-  gltrat<-nt-1
-  glres<-gltotal-gltrat
-  glFa<-gltrat-glreg
-
-  #### quadrados medios
-  QMReg<-SQReg/glreg
-  QMFa<-SQFa/glFa
-  QMtrat<-SQTrat/gltrat
-  QMres<-SQRes/glres
-  GL<-c(glreg,glFa,gltrat,glres,gltotal)
-  SQ<-round(c(SQReg,SQFa,SQTrat,SQRes,SQTotal),3)
-  QM<-c(round(c(QMReg,QMFa,QMtrat,QMres),3),'')
-  anava<-data.frame("GL"=GL,
-                    "SQ"=SQ,
-                    "QM"=QM,
-                    "Fc"=c(round((QMReg/QMres),3),round((QMFa/QMres),3),
-                           round((QMtrat/QMres),3),'',''),
-                    "Pr>Fc"=c(round(1-pf(QMReg/QMres,glreg,glres),5),
-                              round(1-pf(QMFa/QMres,glFa,glres),5),
-                              round(1-pf(QMtrat/QMres,gltrat,glres),5),'',''))
-  colnames(anava)[5]="Pr>Fc"
-  rownames(anava)=c('Regressão','F.Ajuste','Tratamento','Resíduo','Total')
-  ################################### ANOVA #######################
-
-  cat('------------------------------------------------------------------------
-Análise de variância do modelo linear\n------------------------------------------------------------------------\n')
-
-  print(anava)
-
-  ################################### Estatística t do modelo #######################
-  tab2<-summary(md)
-  TabReg<-tab2$coefficients
-  row.names(TabReg)<-c('b0','b1')
-  cat('------------------------------------------------------------------------
-Estatística t do modelo\n------------------------------------------------------------------------\n')
-
-  print(TabReg)
-  cat("R² : ", tab2$r.squared, "\n")
-
-  #################################################################################
-  #Teste de normalidade
-  pvalor.shapiro <- shapiro.test(md$residuals)$p.value
-  cat("\n------------------------------------------------------------------------\nTeste de normalidade dos resíduos (Shapiro-Wilk)\n")
-  cat("p-valor: ", pvalor.shapiro, "\n")
-  if (pvalor.shapiro <= 0.05) {
-    cat("ATENÇÃO: a 95% de confiança, os resíduos não podem ser considerados normais.\n------------------------------------------------------------------------\n")
+  library(ggpubr)
+  #requireNamespace("ggplot2")
+  if (is.na(width.bar) == TRUE) {
+    width.bar = 0.1 * mean(trat)
   }
-  if (pvalor.shapiro > 0.05) {
-    cat("De acordo com o teste de Shapiro-Wilk a 95% de confiança, os resíduos podem ser considerados normais.\n------------------------------------------------------------------------\n\n")
+  if (is.na(grau) == TRUE) {
+    grau = 1
   }
-
-  #################################################################################
-  #Teste da Homogenidade da variância Brown-Forsythe
-  bf<-factor(x)
-  t<-length(levels(bf))
-  r<-as.numeric(table(bf))
-  bf<-factor(x)
-  zdados1<-matrix(0,length(y),1)
-  rp<-0
-  for(k in 1:length(y)) {
-    zdados1[k]<-abs(y[k]-median(y[(rp+1):(rp+r[bf[k]])]))
-    if(k<length(y)){if(x[k]!=x[k+1]){rp<-sum(r[1:bf[k]])}}
+  dados = data.frame(trat, resp)
+  medias = c()
+  dose = tapply(trat, trat, mean, na.rm = TRUE)
+  mod = c()
+  mod1 = c()
+  mod2 = c()
+  modm = c()
+  mod1m = c()
+  mod2m = c()
+  text1 = c()
+  text2 = c()
+  text3 = c()
+  mods = c()
+  mod1s = c()
+  mod2s = c()
+  fparcial1 = c()
+  fparcial2 = c()
+  fparcial3 = c()
+  media = tapply(resp, trat, mean, na.rm = TRUE)
+  desvio = tapply(resp, trat, sd, na.rm = TRUE)
+  erro = tapply(resp, trat, sd, na.rm = TRUE)/sqrt(table(trat))
+  dose = tapply(trat, trat, mean, na.rm = TRUE)
+  moda = lm(resp ~ trat)
+  mod1a = lm(resp ~ trat + I(trat^2))
+  mod2a = lm(resp ~ trat + I(trat^2) + I(trat^3))
+  mods = summary(moda)$coefficients
+  mod1s = summary(mod1a)$coefficients
+  mod2s = summary(mod2a)$coefficients
+  modm = lm(media ~ dose)
+  mod1m = lm(media ~ dose + I(dose^2))
+  mod2m = lm(media ~ dose + I(dose^2) + I(dose^3))
+  modf1 = lm(resp ~ trat)
+  modf2 = lm(resp ~ trat + I(trat^2))
+  modf3 = lm(resp ~ trat + I(trat^2) + I(trat^3))
+  modf1ql = anova(modf1)
+  modf2ql = anova(modf2)
+  modf3ql = anova(modf3)
+  modf1q = aov(resp ~ as.factor(trat))
+  res = anova(modf1q)
+  fadj1 = anova(modf1, modf1q)[2, c(3, 4, 5, 6)]
+  fadj2 = anova(modf2, modf1q)[2, c(3, 4, 5, 6)]
+  fadj3 = anova(modf3, modf1q)[2, c(3, 4, 5, 6)]
+  if (is.na(DFres) == TRUE) {
+    DFres = res[2, 1]
   }
-  pvalor.bf<-summary(aov(zdados1 ~ bf))[[1]][1,5]
-
-  cat('\n------------------------------------------------------------------------\nTeste de homogeneidade de variâncias (Brown-Forsythe) \n')
-  cat('valor-p: ',pvalor.bf, '\n')
-  if(pvalor.bf>0.05){cat('De acordo com o teste de Brown-Forsythe, a 95% de Confianca, as variâncias podem ser consideradas homogêneas!\n')
-    cat('------------------------------------------------------------------------\n')}
-  else{cat('ATENÇÃO: a 95% de confiança, as variâncias não podem ser consideradas homogêneas.\n')
-    cat('------------------------------------------------------------------------\n')
+  if (is.na(SSq) == TRUE) {
+    SSq = res[2, 2]
   }
-
-  #################################################################################
-  #Teste de Independencia dos residuos Durbin-Watson
-  pvalor.DW <-durbinWatsonTest(md)$p
-  cat("\n------------------------------------------------------------------------\nTeste para independência dos resíduos(Durbin-Watson)\n")
-  cat("p-valor: ", pvalor.DW, "\n")
-  if (pvalor.DW <= 0.05) {
-    cat("ATENÇÃo: a 95% de confiança,os resíduos são dependentes.\n------------------------------------------------------------------------\n")
+  df1 = c(modf3ql[1, 1], fadj1[1, 1], DFres)
+  df2 = c(modf3ql[1:2, 1], fadj2[1, 1], DFres)
+  df3 = c(modf3ql[1:3, 1], fadj3[1, 1], DFres)
+  sq1 = c(modf3ql[1, 2], fadj1[1, 2], SSq)
+  sq2 = c(modf3ql[1:2, 2], fadj2[1, 2], SSq)
+  sq3 = c(modf3ql[1:3, 2], fadj3[1, 2], SSq)
+  qm1 = sq1/df1
+  qm2 = sq2/df2
+  qm3 = sq3/df3
+  if (grau == "1") {
+    fa1 = data.frame(cbind(df1, sq1, qm1))
+    fa1$f1 = c(fa1$qm1[1:2]/fa1$qm1[3], NA)
+    fa1$p = c(pf(fa1$f1[1:2], fa1$df1[1:2], fa1$df1[3], lower.tail = F),
+              NA)
+    colnames(fa1) = c("Df", "SSq", "MSQ", "F", "p-value")
+    rownames(fa1) = c("Linear", "Deviation", "Residual")
   }
-  if (pvalor.DW > 0.05) {
-    cat("De acordo com o teste de Durbin-Watson a 95% de confiança, os resíduos são independentes.\n------------------------------------------------------------------------\n\n")
+  if (grau == "2") {
+    fa2 = data.frame(cbind(df2, sq2, qm2))
+    fa2$f2 = c(fa2$qm2[1:3]/fa2$qm2[4], NA)
+    fa2$p = c(pf(fa2$f2[1:3], fa2$df2[1:3], fa2$df2[4], lower.tail = F),
+              NA)
+    colnames(fa2) = c("Df", "SSq", "MSQ", "F", "p-value")
+    rownames(fa2) = c("Linear", "Quadratic", "Deviation",
+                      "Residual")
   }
-
-  ############## Parte grafica
-  par(mfrow=c(2,2))
-  residuo<-md$residuals
-  #valor predito
-  yp <- predict.lm(md)
-  #residuo Jaknife
-  Jack <- rstudent(md)
-
-  qq<-data.frame(y,Jack,yp,ni=1:n)
-  dd<-qq[order(abs(qq[,2]), decreasing=TRUE),]
-  pts<-ifelse(abs(dd[,2])>qt(0.975,n-2),1,0)*dd$ni
-  pontos<-pts[min(which(pts!=0)):max(which(pts!=0))]
-  soma=sum(pontos)
-
-  #Grafico1
-  #qq-plot
-  qe<-function(r){
-    n<-length(r)
-    res<-c()
-    for(i in 1:n){
-      res[i]<-(i-3/8)/(n+1/4)
+  if (grau == "3") {
+    fa3 = data.frame(cbind(df3, sq3, qm3))
+    fa3$f3 = c(fa3$qm3[1:4]/fa3$qm3[5], NA)
+    fa3$p = c(pf(fa3$f3[1:4], fa3$df3[1:4], fa3$df3[5], lower.tail = F),
+              NA)
+    colnames(fa3) = c("Df", "SSq", "MSQ", "F", "p-value")
+    rownames(fa3) = c("Linear", "Quadratic", "Cubic", "Deviation",
+                      "Residual")
+  }
+  if (grau == "1") {
+    r2 = round(summary(modm)$r.squared, 2)
+  }
+  if (grau == "2") {
+    r2 = round(summary(mod1m)$r.squared, 2)
+  }
+  if (grau == "3") {
+    r2 = round(summary(mod2m)$r.squared, 2)
+  }
+  if (grau == "1") {
+    if (is.na(n) == FALSE) {
+      coef1 = round(coef(moda)[1], n)
     }
-    res
+    else {
+      coef1 = coef(moda)[1]
+    }
+    if (is.na(n) == FALSE) {
+      coef2 = round(coef(moda)[2], n)
+    }
+    else {
+      coef2 = coef(moda)[2]
+    }
+    s1 = s <- sprintf("%s == %e %s %e*%s ~~~~~ italic(R^2) == %0.2f",
+                      yname.poly, coef1, ifelse(coef2 >= 0, "+", "-"),
+                      abs(coef2), xname.poly, r2)
   }
-  resord<-sort(residuo)
-  resnorm<-qnorm(qe(residuo))
-  #plot(resord,resnorm)
-
-  ### Ajustado x preditos
-  plot(md,which=1,ann=FALSE,sub="")
-  title(xlab=" ", ylab=" ")
-  ### QQplot
-  plot(md,which=2,ann=FALSE,sub="")
-  title(xlab=" ", ylab=" ")
-
-  #Grafico 2
-  plot(yp,Jack,ylim=c(-3,3),xlab='Valores Preditos',ylab='Resíduo de Pearson',main='',
-  )
-  abline(h=0)
-  abline(h=qt(0.975,n-2),lty = 2)
-  abline(h=qt(0.025,n-2), lty = 2)
-
-  ### Distancia de Cook
-  plot(md,which=4,ann=FALSE,sub="")
-  title(xlab=" ", ylab=" ")
-
-  #Pontos discrepantes via JK
-  cat("Pontos discrepantes pela análise do resíduo Jackknife \n")
-  cat('\n')
-  if (soma == 0) {
-    cat("Não há pontos discrepantes segundo o resído Jackknife.\n------------------------------------------------------------------------\n")
+  if (grau == "2") {
+    if (is.na(n) == FALSE) {
+      coef1 = round(coef(mod1a)[1], n)
+    }
+    else {
+      coef1 = coef(mod1a)[1]
+    }
+    if (is.na(n) == FALSE) {
+      coef2 = round(coef(mod1a)[2], n)
+    }
+    else {
+      coef2 = coef(mod1a)[2]
+    }
+    if (is.na(n) == FALSE) {
+      coef3 = round(coef(mod1a)[3], n)
+    }
+    else {
+      coef3 = coef(mod1a)[3]
+    }
+    s2 = s <- sprintf("%s == %e %s %e * %s %s %e * %s^2 ~~~~~ italic(R^2) ==  %0.2f",
+                      yname.poly, coef1, ifelse(coef2 >= 0, "+", "-"),
+                      abs(coef2), xname.poly, ifelse(coef3 >= 0, "+", "-"),
+                      abs(coef3), xname.poly, r2)
   }
-  if (soma > 0) {
-    cat("De acordo com o resíduo Jackknife, os pontos são:", pontos,"\n------------------------------------------------------------------------\n\n")
+  if (grau == "3") {
+    if (is.na(n) == FALSE) {
+      coef1 = round(coef(mod2a)[1], n)
+    }
+    else {
+      coef1 = coef(mod2a)[1]
+    }
+    if (is.na(n) == FALSE) {
+      coef2 = round(coef(mod2a)[2], n)
+    }
+    else {
+      coef2 = coef(mod2a)[2]
+    }
+    if (is.na(n) == FALSE) {
+      coef3 = round(coef(mod2a)[3], n)
+    }
+    else {
+      coef3 = coef(mod2a)[3]
+    }
+    if (is.na(n) == FALSE) {
+      coef4 = round(coef(mod2a)[4], n)
+    }
+    else {
+      coef4 = coef(mod2a)[4]
+    }
+    s3 = s <- sprintf("%s == %e %s %e * %s %s %e * %s^2 %s %0.e * %s^3 ~~~~~ italic(R^2) == %0.2f",
+                      yname.poly, coef1, ifelse(coef2 >= 0, "+", "-"),
+                      abs(coef2), xname.poly, ifelse(coef3 >= 0, "+", "-"),
+                      abs(coef3), xname.poly, ifelse(coef4 >= 0, "+", "-"),
+                      abs(coef4), xname.poly, r2)
   }
-  cat("Equação da reta:f(x)=",b1,"x +",b0," ")
+
+  ################################################### Parte grafica ################################################################
+  residuoJKF<-function(grau){
+    if (grau == "1") {
+      yp <- predict.lm(moda)      #residuo Jaknife
+      Jack<-rstudent(moda)
+    }
+    if (grau == "2") {
+      yp <- predict.lm(mod1a)      #residuo Jaknife
+      Jack<-rstudent(mod1a)
+    }
+    if (grau == "3") {
+      yp <- predict.lm(mod2a)      #residuo Jaknife
+      Jack<-rstudent(mod2a)
+    }
+    data.frame(yp,Jack)
+  }
+  dadoJKF=residuoJKF(grau)
+  data1=data.frame(trat,resp)
+  data1=data.frame(trat=dose,#as.numeric(as.character(names(media))),
+                   resp=media,
+                   desvio, erro)
+  data2=data.frame(yp=dadoJKF$yp,yjack=dadoJKF$Jack)
+
+  grafico=ggplot(data1,aes(x=trat,y=resp))
+  if(point=="all"){grafico=grafico+
+    geom_point(data=dados,
+               aes(y=resp,x=trat),shape=21,
+               fill=color,color="black")}
+  if(point=="mean_sd"){grafico=grafico+
+    geom_errorbar(aes(ymin=resp-desvio,ymax=resp+desvio),width=width.bar,size=linesize)}
+  if(point=="mean_se"){grafico=grafico+
+    geom_errorbar(aes(ymin=resp-erro,ymax=resp+erro),width=width.bar,size=linesize)}
+  if(point=="mean"){grafico=grafico}
+  grafico=grafico+geom_point(aes(fill=as.factor(rep(1,length(resp)))),na.rm=TRUE,
+                             size=pointsize,shape=21,
+                             color="black")+
+    theme+ylab(ylab)+xlab(xlab)
+  if(is.na(ylim[1])==TRUE){grafico=grafico}else{grafico=grafico+ylim(ylim)}
+
+  if(grau=="0"){grafico=grafico+geom_line(y=mean(resp),size=linesize,lty=2)}
+  if(grau=="1"){grafico=grafico+geom_smooth(method = "lm",se=se, na.rm=TRUE, formula = y~x,size=linesize,color="black")}
+  if(grau=="2"){grafico=grafico+geom_smooth(method = "lm",se=se, na.rm=TRUE, formula = y~x+I(x^2),size=linesize,color="black")}
+  if(grau=="3"){grafico=grafico+geom_smooth(method = "lm",se=se, na.rm=TRUE, formula = y~x+I(x^2)+I(x^3),size=linesize,color="black")}
+  if(grau=="0"){grafico=grafico+
+    scale_fill_manual(values=color,label=paste("y =",round(mean(resp),3)),name="")}
+  if(grau=="1"){grafico=grafico+
+    scale_fill_manual(values=color,label=c(parse(text=s1)),name="")}
+  if(grau=="2"){grafico=grafico+
+    scale_fill_manual(values=color,label=c(parse(text=s2)),name="")}
+  if(grau=="3"){grafico=grafico+
+    scale_fill_manual(values=color,label=c(parse(text=s3)),name="")}
+
+  if(color=="gray"){if(grau=="1"){grafico=grafico+
+    scale_fill_manual(values="black",label=c(parse(text=s1)),name="")}
+    if(grau=="2"){grafico=grafico+
+      scale_fill_manual(values="black",label=c(parse(text=s2)),name="")}
+    if(grau=="3"){grafico=grafico+
+      scale_fill_manual(values="black",label=c(parse(text=s3)),name="")}
+  }
+
+  grafico=grafico+
+    theme(text = element_text(size=textsize,color="black",family=family),
+          axis.text = element_text(size=textsize,color="black",family=family),
+          axis.title = element_text(size=textsize,color="black",family=family),
+          legend.position = posi,
+          legend.text=element_text(size=textsize),
+          legend.direction = "vertical",
+          legend.text.align = 0,
+          legend.justification = 0)
+
+  ############
+  ############
+  nt<-length(resp)
+  grafico2=ggplot(data2,aes(x=yp,y=yjack))+
+    geom_point()+#data2,aes(x=yp,y=yjack),shape=21,color="black")+
+    geom_hline(yintercept =qt(0.975,nt-2), linetype = "dashed",
+               color="red",size=0.8)+
+    geom_hline(yintercept =0, linetype = "dashed",
+               color="gray80",size=0.8)+
+    geom_hline(yintercept =qt(0.025,nt-2), linetype = "dashed",
+               color="red",size=0.8)+
+    labs(x='Resíduo',y='Resíduo de Jacknife')+
+    theme_light()
+
+  graficos<-ggarrange(grafico,grafico2,ncol = 2, nrow = 1)
+
+  print(graficos)
+
+
+  ######################################################### grau da regressao #########################################################
+
+
+  regressao<-function(grau){
+    if (grau == 1) {
+      cat("\n----------------------------------------------------\n")
+      cat("Regression Models")
+      cat("\n----------------------------------------------------\n")
+      print(mods)
+      cat("\n----------------------------------------------------\n")
+      cat("Deviations from regression")
+      cat("\n----------------------------------------------------\n")
+      print(as.matrix(fa1), na.print = " ")
+    }
+    if (grau == 2) {
+      cat("\n----------------------------------------------------\n")
+      cat("Regression Models")
+      cat("\n----------------------------------------------------\n")
+      print(mod1s)
+      cat("\n----------------------------------------------------\n")
+      cat("Deviations from regression")
+      cat("\n----------------------------------------------------\n")
+      print(as.matrix(fa2), na.print = " ")
+    }
+    if (grau == 3) {
+      cat("\n----------------------------------------------------\n")
+      cat("Regression Models")
+      cat("\n----------------------------------------------------\n")
+      print(mod2s)
+      cat("\n----------------------------------------------------\n")
+      cat("Deviations from regression")
+      cat("\n----------------------------------------------------\n")
+      print(as.matrix(fa3), na.print = " ")
+    }
+  }
+  modelo<-regressao(grau)
+
+  ########################################################### Teste de normalidade dos residuos do modelo ##############################################################
+  #grau 1
+  if (grau == "1") {
+    pvalor.shapiro <- shapiro.test(modm$residuals)$p.value
+    cat("\n------------------------------------------------------------------------\nTeste de normalidade dos residuos (Shapiro-Wilk)\n")
+    cat("p-valor: ", pvalor.shapiro, "\n")
+    if (pvalor.shapiro <= 0.05) {
+      cat("ATENCAO: a 5% de significancia, os residuos nao podem ser considerados normais.\n------------------------------------------------------------------------\n")
+    }
+    if (pvalor.shapiro > 0.05) {
+      cat("De acordo com o teste de Shapiro-Wilk a 5% de significancia, os residuos podem ser considerados normais.\n------------------------------------------------------------------------\n\n")
+    }}
+  #grau 2
+  if (grau == "2") {
+    pvalor.shapiro <- shapiro.test(mod1m$residuals)$p.value
+    cat("\n------------------------------------------------------------------------\nTeste de normalidade dos residuos (Shapiro-Wilk)\n")
+    cat("p-valor: ", pvalor.shapiro, "\n")
+    if (pvalor.shapiro <= 0.05) {
+      cat("ATENCAO: a 5% de significancia, os residuos nao podem ser considerados normais.\n------------------------------------------------------------------------\n")
+    }
+    if (pvalor.shapiro > 0.05) {
+      cat("De acordo com o teste de Shapiro-Wilk a 5% de significancia, os residuos podem ser considerados normais.\n------------------------------------------------------------------------\n\n")
+    }}
+  #grau 3
+  if (grau == "3") {
+    pvalor.shapiro <- shapiro.test(mod2m$residuals)$p.value
+    cat("\n------------------------------------------------------------------------\nTeste de normalidade dos residuos (Shapiro-Wilk)\n")
+    cat("p-valor: ", pvalor.shapiro, "\n")
+    if (pvalor.shapiro <= 0.05) {
+      cat("ATENCAO: a 5% de significancia, os residuos nao podem ser considerados normais.\n------------------------------------------------------------------------\n")
+    }
+    if (pvalor.shapiro > 0.05) {
+      cat("De acordo com o teste de Shapiro-Wilk a 5% de significancia, os residuos podem ser considerados normais.\n------------------------------------------------------------------------\n\n")
+    }}
+  ########################################################################### Homogeneidade de variancias  #############################################################
+  pvalor.levene <- leveneTest(modf1q)$`Pr(>F)`[1]
+  cat("\n------------------------------------------------------------------------\nTeste de Levene para Homogeneidade das variancias\n")
+  cat("p-valor: ", pvalor.levene, "\n")
+  if (pvalor.levene <= 0.05) {
+    cat("ATENCAO: a 5% de significancia, as Variancias podem nao serem Homogeneias.\n------------------------------------------------------------------------\n")
+  }
+  if (pvalor.levene > 0.05) {
+    cat("De acordo com o teste de Levene a 5% de significancia, as variancias podem ser consideradas homogeneas.\n------------------------------------------------------------------------\n\n")
+  }
+  ########################################################### Teste de independencia dos residuos do modelo ##############################################################
+  #grau 1
+  if (grau == "1") {
+    pvalor.DW <-durbinWatsonTest(modm)$p
+    cat("\n------------------------------------------------------------------------\nTeste de Durbin-Watson para Independencia dos residuos\n")
+    cat("p-valor: ", pvalor.DW, "\n")
+    if (pvalor.DW <= 0.05) {
+      cat("ATENCAO: a 5% de significancia,os residuos sao dependentes.\n------------------------------------------------------------------------\n")
+    }
+    if (pvalor.levene > 0.05) {
+      cat("De acordo com o teste de Durbin-Watson a 5% de significancia, os residuos sao independentes.\n------------------------------------------------------------------------\n\n")
+    }  }
+  #grau 2
+  if (grau == "2") {
+    pvalor.DW <-durbinWatsonTest(mod1m)$p
+    cat("\n------------------------------------------------------------------------\nTeste de Durbin-Watson para Independencia dos residuos\n")
+    cat("p-valor: ", pvalor.DW, "\n")
+    if (pvalor.DW <= 0.05) {
+      cat("ATENCAO: a 5% de significancia,os residuos sao dependentes.\n------------------------------------------------------------------------\n")
+    }
+    if (pvalor.levene > 0.05) {
+      cat("De acordo com o teste de Durbin-Watson a 5% de significancia, os residuos sao independentes.\n------------------------------------------------------------------------\n\n")
+    }  }
+  #grau 3
+  if (grau == "3") {
+    pvalor.DW <-durbinWatsonTest(mod2m)$p
+    cat("\n------------------------------------------------------------------------\nTeste de Durbin-Watson para Independencia dos residuos\n")
+    cat("p-valor: ", pvalor.DW, "\n")
+    if (pvalor.DW <= 0.05) {
+      cat("ATENCAO: a 5% de significancia,os residuos sao dependentes.\n------------------------------------------------------------------------\n")
+    }
+    if (pvalor.levene > 0.05) {
+      cat("De acordo com o teste de Durbin-Watson a 5% de significancia, os residuos sao independentes.\n------------------------------------------------------------------------\n\n")
+    }  }
+
+
+  ################################################### Residuo ######################################################################
+  pontosJKF<-function(grau){
+    if (grau == "1") {
+      yp <- predict.lm(moda)      #residuo Jaknife
+      Jack<-rstudent(moda)
+      n<-length(resp)
+      QQ<-data.frame(resp,Jack,yp,ni=1:n)
+      dd<-QQ[order(abs(QQ[,2]), decreasing=TRUE),]
+      pts<-ifelse(abs(dd[,2])>qt(0.975,n-2),1,0)*dd$ni
+    }
+    if (grau == "2") {
+      yp <- predict.lm(mod1a)      #residuo Jaknife
+      Jack<-rstudent(mod1a)
+      n<-length(resp)
+      QQ<-data.frame(resp,Jack,yp,ni=1:n)
+      dd<-QQ[order(abs(QQ[,2]), decreasing=TRUE),]
+      pts<-ifelse(abs(dd[,2])>qt(0.975,n-2),1,0)*dd$ni
+    }
+    if (grau == "3") {
+      yp <- predict.lm(mod2a)      #residuo Jaknife
+      Jack<-rstudent(mod2a)
+      n<-length(resp)
+      QQ<-data.frame(resp,Jack,yp,ni=1:n)
+      dd<-QQ[order(abs(QQ[,2]), decreasing=TRUE),]
+      pts<-ifelse(abs(dd[,2])>qt(0.975,n-2),1,0)*dd$ni
+    }
+    # retirando os bugs de nao haver pontos discrepantes no codigo
+    soma<-sum(pts)
+    cat("Pontos discrepantes pela analise do residuo Jacknif \n")
+    cat('\n')
+    if (soma == 0) {
+      cat("Nao existem discrpantes segundo o residuo Jaknife os pontos discrepantes.\n------------------------------------------------------------------------\n")
+    }
+    if (soma > 0) {
+      pontos<-pts[min(which(pts!=0)):max(which(pts!=0))]
+      cat("Segundo o residuo Jaknife os pontos discrepantes sao:", pontos,"\n------------------------------------------------------------------------\n\n")
+    }
+
+  }
+  Jackres<-pontosJKF(grau)
 
   #Saida
   out<-list()
-  out$anava
+  out$modelo
   out$pvalor.shapiro
   out$pvalor.levene
-  #out$pontos
+  out$Jackres
+  out$graficos
   invisible(out)
+  ############## Parte grafica
+  #graficos = list(grafico,grafico)
 
+  #marrangeGrob(graficos, nrow=1, ncol=2)
 }
