@@ -1,18 +1,41 @@
+#' @title Reg_UFVJM
+#' @name Regressão Linear
+#'
+#' @description Trata-se de uma função que faz a regressão linear de um modelo,
+#' testando hipóteses que garantem que o modelo linear é adequado, bem como se a
+#' regressão é significativa.
+#'
+#' @param trat Um vetor da variável independente X
+#' @param resp Um vetor da variável dependente Y
+#' @param grau Escolha do grau de regressão, podendo ser de linear (1), quadrático (2)
+#' ou cúbico (3)
+#'
+#'
+#' @details A função incorpora também a regressão polinomial, porém a parte gráfica
+#' desse modelo de regressão ainda não foi feita
+#'
+#' @return A regressão do modelo e análise dos parametros de regressão
+#'
+#' @author Igor Samuel Mendes
+#'
+#'
+#'
+#' @examples
+#' #teste com TCDD pelo MELDD (Dados obtidos de SICUPIRA,2019)
+#'a<- c(5.3,5.3,5.3,13.3,13.3,13.3,21.3,21.3,21.3,29.3,
+#'      29.3,29.3,37.3,37.3,37.3,45.3,45.3,45.3)
+#'b<-c(423832.00000,267896.00000,370213.00000,780549.00000,1545854.00000,1093452.00000,
+#'     2378730.00000,2709421.00000,2204908.00000,3591964.00000,3492212.00000,
+#'     3523445.00000,4762476.00000,4830668.00000,4853425.00000,5648307.00000,
+#'     5334327.00000,5753813.00000)
+#'lmQuim(a,b,grau=1,n=3, ylab = "Variável Resposta", xlab = "Variável Independente")
+#' Existe um outlier no ponto 4
+#'
 #'@export
-#'@description
-#'O presente pacote faz o tratamento de dados provenientes de uma análise
-#cromatográfica informando quando a regressão linear, análise de premissas e
-#valores extremos
-#' @param x são as concentrações
-#' @param y são as respostas cromatográficas
-#'@example
-#'x<- c(5.3,5.3,5.3,13.3,13.3,13.3,21.3,21.3,21.3,29.3,29.3,29.3,37.3,37.3,37.3,45.3,45.3,45.3)
-#y<- c(423832,267896,370213,1545854,1093452,780549,2378730,2204902,2709421,3492212,3591964,3523445,4762476,4830668,4853425,5334327,5753813,5648307)
-#Lin_UFVJM(x,y)
-
-#Análise de premissas e linearidade
-
-lmQuim<-function (trat, resp, ylab = "Response", xlab = "Independent",
+#Pacote Quimiometria_UFVJM_FAPEMIG
+#Função de regressão
+####################################################################
+Reg_UFVJM<-function (trat, resp, ylab = "Resposta", xlab = "Independente",
                   yname.poly = "y", xname.poly = "x", grau = NA, theme = theme_classic(),
                   point = "mean_sd", color = "gray80", posi = "top", textsize = 12,
                   se = FALSE, ylim = NA, family = "sans", pointsize = 4.5,
@@ -91,8 +114,8 @@ lmQuim<-function (trat, resp, ylab = "Response", xlab = "Independent",
     fa1$f1 = c(fa1$qm1[1:2]/fa1$qm1[3], NA)
     fa1$p = c(pf(fa1$f1[1:2], fa1$df1[1:2], fa1$df1[3], lower.tail = F),
               NA)
-    colnames(fa1) = c("Df", "SSq", "MSQ", "F", "p-value")
-    rownames(fa1) = c("Linear", "Deviation", "Residual")
+    colnames(fa1) = c("GL", "SQ", "QM", "F", "p-value")
+    rownames(fa1) = c("Linear", "Devios", "Residuos")
   }
   if (grau == "2") {
     fa2 = data.frame(cbind(df2, sq2, qm2))
@@ -289,11 +312,11 @@ lmQuim<-function (trat, resp, ylab = "Response", xlab = "Independent",
   regressao<-function(grau){
     if (grau == 1) {
       cat("\n----------------------------------------------------\n")
-      cat("Regression Models")
+      cat("Modelo de regressão")
       cat("\n----------------------------------------------------\n")
       print(mods)
       cat("\n----------------------------------------------------\n")
-      cat("Deviations from regression")
+      cat("Desvios de regressão")
       cat("\n----------------------------------------------------\n")
       print(as.matrix(fa1), na.print = " ")
     }
@@ -324,13 +347,13 @@ lmQuim<-function (trat, resp, ylab = "Response", xlab = "Independent",
   #grau 1
   if (grau == "1") {
     pvalor.shapiro <- shapiro.test(modm$residuals)$p.value
-    cat("\n------------------------------------------------------------------------\nTeste de normalidade dos residuos (Shapiro-Wilk)\n")
+    cat("\n------------------------------------------------------------------------\nTeste de Shapiro-Wilk para normalidade dos residuos \n")
     cat("p-valor: ", pvalor.shapiro, "\n")
     if (pvalor.shapiro <= 0.05) {
-      cat("ATENCAO: a 5% de significancia, os residuos nao podem ser considerados normais.\n------------------------------------------------------------------------\n")
+      cat("ATENÇÃO: a 95% de confiança, os resíduos não podem ser considerados normais.\n------------------------------------------------------------------------\n")
     }
     if (pvalor.shapiro > 0.05) {
-      cat("De acordo com o teste de Shapiro-Wilk a 5% de significancia, os residuos podem ser considerados normais.\n------------------------------------------------------------------------\n\n")
+      cat("De acordo com o teste de Shapiro-Wilk a 95% de confiança, os resíduos podem ser considerados normais.\n------------------------------------------------------------------------\n")
     }}
   #grau 2
   if (grau == "2") {
@@ -356,25 +379,25 @@ lmQuim<-function (trat, resp, ylab = "Response", xlab = "Independent",
     }}
   ########################################################################### Homogeneidade de variancias  #############################################################
   pvalor.levene <- leveneTest(modf1q)$`Pr(>F)`[1]
-  cat("\n------------------------------------------------------------------------\nTeste de Levene para Homogeneidade das variancias\n")
+  cat("\n------------------------------------------------------------------------\nTeste de Brown-Forsythe para Homogeneidade das variâncias\n")
   cat("p-valor: ", pvalor.levene, "\n")
   if (pvalor.levene <= 0.05) {
-    cat("ATENCAO: a 5% de significancia, as Variancias podem nao serem Homogeneias.\n------------------------------------------------------------------------\n")
+    cat("ATENÇÃO: a 95% de confiança, as variâncias não podem ser consideradas homogêneas.\n------------------------------------------------------------------------\n")
   }
   if (pvalor.levene > 0.05) {
-    cat("De acordo com o teste de Levene a 5% de significancia, as variancias podem ser consideradas homogeneas.\n------------------------------------------------------------------------\n\n")
+    cat("De acordo com o teste de Brown-Forsythe, a 95% de Confiança, as variâncias podem ser consideradas homogêneas.\n------------------------------------------------------------------------\n")
   }
-  ########################################################### Teste de independencia dos residuos do modelo ##############################################################
+  ########################################################### Teste de independência dos resíduos do modelo ##############################################################
   #grau 1
   if (grau == "1") {
     pvalor.DW <-durbinWatsonTest(modm)$p
-    cat("\n------------------------------------------------------------------------\nTeste de Durbin-Watson para Independencia dos residuos\n")
+    cat("\n------------------------------------------------------------------------\nTeste de Durbin-Watson para Independência dos resíduos\n")
     cat("p-valor: ", pvalor.DW, "\n")
     if (pvalor.DW <= 0.05) {
       cat("ATENCAO: a 5% de significancia,os residuos sao dependentes.\n------------------------------------------------------------------------\n")
     }
     if (pvalor.levene > 0.05) {
-      cat("De acordo com o teste de Durbin-Watson a 5% de significancia, os residuos sao independentes.\n------------------------------------------------------------------------\n\n")
+      cat("De acordo com o teste de Durbin-Watson a 95% de confiança, os resíduos são independentes.\n------------------------------------------------------------------------\n")
     }  }
   #grau 2
   if (grau == "2") {
@@ -428,14 +451,14 @@ lmQuim<-function (trat, resp, ylab = "Response", xlab = "Independent",
     }
     # retirando os bugs de nao haver pontos discrepantes no codigo
     soma<-sum(pts)
-    cat("Pontos discrepantes pela analise do residuo Jacknif \n")
-    cat('\n')
+    cat("Teste Jacknife \n")
+    #cat('\n')
     if (soma == 0) {
-      cat("Nao existem discrpantes segundo o residuo Jaknife os pontos discrepantes.\n------------------------------------------------------------------------\n")
+      cat("Não existem pontos discrepantes segundo o resíduo Jaknife \n------------------------------------------------------------------------\n")
     }
     if (soma > 0) {
       pontos<-pts[min(which(pts!=0)):max(which(pts!=0))]
-      cat("Segundo o residuo Jaknife os pontos discrepantes sao:", pontos,"\n------------------------------------------------------------------------\n\n")
+      cat("Segundo o resíduo Jacknife, os pontos discrepantes são:", pontos,"\n------------------------------------------------------------------------\n")
     }
 
   }
@@ -449,8 +472,4 @@ lmQuim<-function (trat, resp, ylab = "Response", xlab = "Independent",
   out$Jackres
   out$graficos
   invisible(out)
-  ############## Parte grafica
-  #graficos = list(grafico,grafico)
-
-  #marrangeGrob(graficos, nrow=1, ncol=2)
 }

@@ -1,9 +1,9 @@
-Package: QuimiometriaUFVJM
+Package: Quimiometria
 Type: Package
-Title: Quimiometria
+Title: Quimiometria.UFVJM.FAPEMIG
 Version: 0.1.0
 Author: Igor Samuel Mendes
-Maintainer: igor.samuel@ufvjm.edu.br
+Maintainer: Igor Samuel Mendes <igor.samuel@ufvjm.edu.br>
 Description: O pacote foi feito no intuito de agilizar os testes estatísticos dentro da quimiometria a fim de fornecer dados de forma rápida, precisa e confiável
 License: ...
 Encoding: UTF-8
